@@ -1,0 +1,27 @@
+# Configuration for GPTQv2 8-bit quantization script
+
+# Base model to be quantized from Hugging Face Hub or a local path
+model_id: "meta-llama/Llama-3-8B-Instruct"
+
+# Directory to save the quantized model. This will be created inside the repository.
+output_dir: "./quantized-models/Llama-3-8B-Instruct-8bit-gptqv2"
+
+# GPU devices to use for quantization. For multi-GPU, list as a comma-separated string (e.g., "0,1")
+# This will be used to set the CUDA_VISIBLE_DEVICES environment variable.
+gpu_devices: "0"
+
+# Quantization configuration
+quantization_config:
+  bits: 8
+  group_size: 128 # Use -1 for per-channel quantization
+  sym: true # Symmetric quantization
+  desc_act: false # Set to true to enable activation order, which might improve accuracy
+  v2: true # Use GPTQ v2 algorithm
+  damp_percent: 0.01
+
+# Calibration dataset configuration
+calibration:
+  dataset: "allenai/c4"
+  subset: "en/c4-train.00001-of-01024.json.gz"
+  num_samples: 1024 # Number of samples to use for calibration
+  batch_size: 1 # Batch size for quantization. Adjust based on your VRAM. 
