@@ -43,7 +43,11 @@ def main():
     # --- Model Loading ---
     model_id = config["model_id"]
     print(f"Loading model: {model_id}")
-    model = GPTQModel.load(model_id, quant_config)
+    model = GPTQModel.load(
+        model_id,
+        quant_config,
+        device_map="auto"
+    )
 
     # --- Quantization ---
     print("Starting quantization...")
