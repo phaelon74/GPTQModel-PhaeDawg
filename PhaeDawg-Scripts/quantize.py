@@ -5,8 +5,10 @@ from gptqmodel import GPTQModel, QuantizeConfig
 import torch
 
 def main():
-    # Load configuration from YAML file
-    with open("PhaeDawg-Scripts/config.yaml", "r") as f:
+    # Load configuration from YAML file relative to the script's location
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(script_dir, "config.yaml")
+    with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 
     # Set CUDA_VISIBLE_DEVICES for multi-GPU support
