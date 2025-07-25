@@ -57,7 +57,7 @@ def assemble_quantized_model(config):
         )
         # Also, we need to manually set the quantized weight data
         # This is a bit of a hack, as we are working around the library's in-memory design
-        module_to_update = get_module_by_name_prefix(model.model, full_module_name)
+        module_to_update, _ = get_module_by_name_prefix(model.model, full_module_name)
         if module_to_update:
             module_to_update.weight.data = layer_data['weight']
 

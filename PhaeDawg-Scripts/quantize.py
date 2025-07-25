@@ -86,7 +86,7 @@ def quantize_and_save_layers(config):
     
     # Move base modules to the first GPU for the forward pass
     for module_name in model.base_modules:
-        module = get_module_by_name_prefix(model.model, module_name)
+        module, _ = get_module_by_name_prefix(model.model, module_name)
         if module is not None:
             module.to(f"cuda:0")
 
@@ -100,7 +100,7 @@ def quantize_and_save_layers(config):
 
     # Move base modules back to CPU
     for module_name in model.base_modules:
-        module = get_module_by_name_prefix(model.model, module_name)
+        module, _ = get_module_by_name_prefix(model.model, module_name)
         if module is not None:
             module.to('cpu')
     
