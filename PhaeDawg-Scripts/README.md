@@ -85,16 +85,27 @@ All settings for the quantization process are controlled by the `config.yaml` fi
 -   `calibration`:
     -   `num_samples`: **This is a critical parameter for managing memory.** For very large models (100B+ parameters), the memory required for caching activations during quantization can be substantial. If you encounter an `OutOfMemoryError`, you must **reduce this value** significantly (e.g., to 64, 32, or even lower) until the process fits within your GPU's VRAM.
 
-## 4. Usage
+## 4. Usage (Two-Step Process)
 
-Once the installation is complete and the `config.yaml` file is configured, you can run the script.
+Due to the extreme System RAM requirements for quantizing very large models (100B+ parameters), the process has been split into two scripts. You must run them in order.
+
+### Step 1: Quantize and Save Layers to Disk
+
+This first script performs the memory-intensive quantization for each layer one-by-one. Instead of holding the results in RAM, it saves each quantized layer's data to a separate file in a `quant_layers` subdirectory within your `output_dir`. This process will take a significant amount of time, but it is designed to avoid running out of System RAM.
 
 ```bash
-# Navigate to the script's directory
-cd PhaeDawg-Scripts
-
-# Run the quantization script
+# Ensure you are in the PhaeDawg-Scripts directory
 python quantize.py
 ```
 
+### Step 2: Assemble the Final Model
+
+After `quantize.py` has finished, run the `assemble_model.py` script. This will load the individual quantized layer files from disk, "pack" them into the final model structure, and save the consolidated model to your specified `output_dir`.
+
+```bash
+# Ensure you are in the PhaeDawg-Scripts directory
+python assemble_model.py
+```
+
+Upon successful completion of the second script, the final quantized model will be available in the directory specified by `output_dir` in your configuration file. 
 The script will print progress updates to the console. Upon successful completion, the quantized model will be available in the directory specified by `output_dir` in your configuration file. 
