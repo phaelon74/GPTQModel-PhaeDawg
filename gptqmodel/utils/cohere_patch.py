@@ -32,7 +32,7 @@ if _c2 is not None and not getattr(_c2.apply_rotary_pos_emb, "_gptqmodel_safe", 
 
         import torch
 
-        head_dim_rope = cos.shape[-1]
+        seq_len_rope, head_dim_rope = cos.shape[-2], cos.shape[-1]
 
         if q.shape[-1] == head_dim_rope:  # normal layout  (…, seq, dim)
             seq_axis, head_axis = -2, -1
@@ -44,7 +44,7 @@ if _c2 is not None and not getattr(_c2.apply_rotary_pos_emb, "_gptqmodel_safe", 
             seq_axis, head_axis = -2, -1
             cos_s, sin_s = cos, sin
 
-        seq_len = min(q.shape[seq_axis], cos_s.shape[-2])
+        seq_len = min(q.shape[seq_axis], seq_len_rope)
         head_dim = head_dim_rope & ~1  # even
 
         # slice tensors
