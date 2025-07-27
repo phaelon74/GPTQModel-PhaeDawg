@@ -22,35 +22,46 @@ except (ImportError, ModuleNotFoundError):
 if _c2 is not None and not getattr(_c2.apply_rotary_pos_emb, "_gptqmodel_safe", False):
 
     def _apply_rope_safe(q, k, cos, sin):  # type: ignore[override]
-        """Safe RoPE that auto-detects axis order and trims tables.
+        """RoPE that works no matter which axis is sequence vs head_dim.
 
-        1. Detect Cohere-2 layout (`…, dim, seq`) vs ref layout (`…, seq, dim`).
-        2. Transpose to `(…, seq, dim)` if needed.
-        3. Trim `cos`/`sin` and `q`/`k` to common `(seq_len, head_dim)`
-           (rotate_half requires even head_dim → round down if odd).
-        4. Apply standard RoPE, transpose back if we transposed in step-1.
+        We *do not* change the tensor layout, preserving Cohere-2’s MQA logic.
+        Instead we adapt the cosine / sine tables and apply rotation along the
+        correct axis.
         """
 
-        transposed = False
-        if q.shape[-2] > q.shape[-1]:  # dim > seq  → Cohere-2 “swapped” layout
-            q, k = q.transpose(-1, -2), k.transpose(-1, -2)
-            transposed = True
+        # identify axes
+        if q.shape[-1] % 2 == 0 and q.shape[-1] == cos.shape[-1]:
+            head_axis, seq_axis = -1, -2  # standard layout (…, seq, dim)
+        else:
+            head_axis, seq_axis = -2, -1  # Cohere-2 layout  (…, dim, seq)
 
-        seq_len, head_dim = q.shape[-2], q.shape[-1]
-        seq_len = min(seq_len, cos.shape[-2])
-        head_dim = min(head_dim, cos.shape[-1]) & ~1  # make even for rotate_half
+        seq_len = min(q.shape[seq_axis], cos.shape[-2])
+        head_dim = min(q.shape[head_axis], cos.shape[-1]) & ~1  # even
 
-        # slice everything to the agreed size
+        # slice q,k
+        slicer_qk = [slice(None)] * q.dim()
+        slicer_qk[seq_axis] = slice(0, seq_len)
+        slicer_qk[head_axis] = slice(0, head_dim)
+        q = q[tuple(slicer_qk)]
+        k = k[tuple(slicer_qk)]
+
+        # prepare cos/sin to broadcast with q layout
         cos = cos[:, :seq_len, :head_dim]
         sin = sin[:, :seq_len, :head_dim]
-        q = q[:, :seq_len, :head_dim]
-        k = k[:, :seq_len, :head_dim]
+        if head_axis == -2:  # need head_dim before seq for broadcasting
+            cos = cos.permute(0, 2, 1)
+            sin = sin.permute(0, 2, 1)
 
-        q_out = (q * cos) + (_c2.rotate_half(q) * sin)
-        k_out = (k * cos) + (_c2.rotate_half(k) * sin)
+        # rotate_half along head_axis
+        def rotate_half_axis(x, axis):
+            dim = x.shape[axis]
+            x1, x2 = x.split(dim // 2, dim=axis)
+            return torch.cat((-x2, x1), dim=axis)
 
-        if transposed:
-            q_out, k_out = q_out.transpose(-1, -2), k_out.transpose(-1, -2)
+        import torch
+
+        q_out = (q * cos) + (rotate_half_axis(q, head_axis) * sin)
+        k_out = (k * cos) + (rotate_half_axis(k, head_axis) * sin)
         return q_out, k_out
 
     _apply_rope_safe._gptqmodel_safe = True  # type: ignore[attr-defined]
