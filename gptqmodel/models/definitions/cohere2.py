@@ -20,11 +20,3 @@ from . import LlamaGPTQ
 class Cohere2GPTQ(LlamaGPTQ):
     require_pkgs_version = ["transformers>4.47.99"]
     layer_type = "Cohere2DecoderLayer"
-    require_monkeypatch = True
-
-    def monkey_patch(self):
-        from gptqmodel.monkey_patch.cohere2 import apply_rotary_pos_emb, cohere2_attn_forward_patch
-        from transformers.models.cohere2 import modeling_cohere2
-
-        modeling_cohere2.apply_rotary_pos_emb = apply_rotary_pos_emb
-        modeling_cohere2.Cohere2Attention.forward = cohere2_attn_forward_patch

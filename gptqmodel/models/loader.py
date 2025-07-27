@@ -163,6 +163,9 @@ def ModelLoader(cls):
 
         config = AutoConfig.from_pretrained(model_local_path, **model_init_kwargs)
 
+        if config.model_type == "cohere2":
+            config.rotary_dim = 96
+
         atten_impl = model_init_kwargs.get("attn_implementation", None)
 
         if atten_impl is not None and atten_impl != "auto":
