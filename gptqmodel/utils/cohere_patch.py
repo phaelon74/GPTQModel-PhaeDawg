@@ -34,9 +34,20 @@ if _cohere2 is not None and hasattr(_cohere2, "apply_rotary_pos_emb"):
         _orig_apply_rope = _cohere2.apply_rotary_pos_emb  # keep reference
 
         def _safe_apply_rope(q, k, cos, sin):  # type: ignore[override]
-            """Slice `cos` / `sin` to the real head_dim to avoid shape mismatch."""
-            cos = cos[..., : q.shape[-1]]
-            sin = sin[..., : q.shape[-1]]
+            """Ensure cosine/sine tables match BOTH seq_len and head_dim of the
+            incoming tensors.
+
+            * 1st dim (batch)  is  broadcastable already (size 1)
+            * 2nd dim (seq)   must be trimmed to `q.shape[-2]`
+            * last dim (dim)  must equal `q.shape[-1]` (real head_dim)
+            """
+
+            seq_len = q.shape[-2]
+            head_dim = q.shape[-1]
+
+            cos = cos[:, :seq_len, :head_dim]
+            sin = sin[:, :seq_len, :head_dim]
+
             return (
                 (q * cos) + (_cohere2.rotate_half(q) * sin),
                 (k * cos) + (_cohere2.rotate_half(k) * sin),
