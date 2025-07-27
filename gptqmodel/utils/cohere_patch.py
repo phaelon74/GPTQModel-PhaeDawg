@@ -47,10 +47,21 @@ if _cohere2 is not None and hasattr(_cohere2, "apply_rotary_pos_emb"):
             if need_transpose:
                 q, k = q.transpose(-1, -2), k.transpose(-1, -2)
 
-            seq_len, head_dim = q.shape[-2], q.shape[-1]
+            # Determine working seq_len / head_dim compatible with all tensors
+            seq_len = min(cos.shape[-2], q.shape[-2])
+            head_dim = min(cos.shape[-1], q.shape[-1])
 
+            # head_dim must be even for rotate_half -> make it so
+            if head_dim % 2 == 1:
+                head_dim -= 1
+
+            # slice positional tables
             cos = cos[:, :seq_len, :head_dim]
             sin = sin[:, :seq_len, :head_dim]
+
+            # slice q/k to match
+            q = q[:, :seq_len, :head_dim]
+            k = k[:, :seq_len, :head_dim]
 
             q_out = (q * cos) + (_cohere2.rotate_half(q) * sin)
             k_out = (k * cos) + (_cohere2.rotate_half(k) * sin)
