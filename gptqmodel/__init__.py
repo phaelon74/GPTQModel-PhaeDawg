@@ -22,8 +22,6 @@ from .utils import BACKEND
 from .utils.exllama import exllama_set_max_input_length
 from .version import __version__
 
-# Apply runtime patches for external model quirks (e.g. Cohere2 dimensional bugs)
-from .utils import cohere_patch  # noqa: F401,E402
 
 if os.getenv('GPTQMODEL_USE_MODELSCOPE', 'False').lower() in ['true', '1']:
     try:
