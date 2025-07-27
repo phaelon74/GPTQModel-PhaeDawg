@@ -3,6 +3,8 @@ import torch
 from transformers.models.cohere2.modeling_cohere2 import Cohere2Attention
 import inspect
 
+_original_cohere2_attn_forward = Cohere2Attention.forward
+
 def cohere2_attn_forward_patch(self, *args, **kwargs):
     # a HACK, but it works
     # when quantizing, the position_ids is not passed to the attention forward pass
@@ -20,7 +22,7 @@ def cohere2_attn_forward_patch(self, *args, **kwargs):
 
     if "position_ids" in kwargs and kwargs["position_ids"] is not None:
         kwargs["position_ids"] = kwargs["position_ids"].to(self.q_proj.weight.device)
-    return Cohere2Attention.forward(self, *args, **kwargs)
+    return _original_cohere2_attn_forward(self, *args, **kwargs)
 
 def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
     cos = cos[position_ids].unsqueeze(unsqueeze_dim)
