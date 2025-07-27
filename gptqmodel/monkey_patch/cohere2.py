@@ -1,9 +1,25 @@
 
 import torch
 from transformers.models.cohere2.modeling_cohere2 import Cohere2Attention
+import inspect
 
 def cohere2_attn_forward_patch(self, *args, **kwargs):
-    kwargs["position_ids"] = kwargs["position_ids"].to(self.q_proj.weight.device)
+    # a HACK, but it works
+    # when quantizing, the position_ids is not passed to the attention forward pass
+    # but is required by the rotary embedding layer.
+    # we grab it from the layer above and add it to the attention forward pass.
+    # see: https://github.com/huggingface/transformers/blob/v4.41.2/src/transformers/models/cohere/modeling_cohere.py#L353
+    if "position_ids" not in kwargs or kwargs["position_ids"] is None:
+        # get position_ids from the call stack
+        for frame_info in inspect.stack():
+            if "position_ids" in frame_info.frame.f_locals:
+                position_ids = frame_info.frame.f_locals["position_ids"]
+                if isinstance(position_ids, torch.Tensor):
+                    kwargs["position_ids"] = position_ids
+                    break
+
+    if "position_ids" in kwargs and kwargs["position_ids"] is not None:
+        kwargs["position_ids"] = kwargs["position_ids"].to(self.q_proj.weight.device)
     return Cohere2Attention.forward(self, *args, **kwargs)
 
 def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
