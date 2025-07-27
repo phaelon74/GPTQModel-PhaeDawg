@@ -34,29 +34,31 @@ if _cohere2 is not None and hasattr(_cohere2, "apply_rotary_pos_emb"):
         _orig_apply_rope = _cohere2.apply_rotary_pos_emb  # keep reference
 
         def _safe_apply_rope(q, k, cos, sin):  # type: ignore[override]
-            """Ensure cosine/sine tables match BOTH seq_len and head_dim of the
-            incoming tensors.
+            """Apply RoPE regardless of `(seq_len, head_dim)` axis order.
 
-            * 1st dim (batch)  is  broadcastable already (size 1)
-            * 2nd dim (seq)   must be trimmed to `q.shape[-2]`
-            * last dim (dim)  must equal `q.shape[-1]` (real head_dim)
+            Cohere-2 swaps the two trailing axes compared to the reference
+            implementation.  We detect the layout at run-time and, if
+            necessary, transpose `[B, head_dim, seq_len] -> [B, seq_len, head_dim]`
+            before applying the usual formula, then transpose the result back.
             """
 
-            seq_len_cos = cos.shape[-2]
-            # possible seq length dims in q (depend on ordering)
-            cand1, cand2 = q.shape[-2], q.shape[-1]
-            seq_len = cand1 if cand1 <= seq_len_cos else cand2
+            need_transpose = q.shape[-2] >  q.shape[-1]  # 128 vs 83 → True
 
-            head_dim_cos = cos.shape[-1]
-            head_dim = cand2 if cand2 <= head_dim_cos else cand1
+            if need_transpose:
+                q, k = q.transpose(-1, -2), k.transpose(-1, -2)
+
+            seq_len, head_dim = q.shape[-2], q.shape[-1]
 
             cos = cos[:, :seq_len, :head_dim]
             sin = sin[:, :seq_len, :head_dim]
 
-            return (
-                (q * cos) + (_cohere2.rotate_half(q) * sin),
-                (k * cos) + (_cohere2.rotate_half(k) * sin),
-            )
+            q_out = (q * cos) + (_cohere2.rotate_half(q) * sin)
+            k_out = (k * cos) + (_cohere2.rotate_half(k) * sin)
+
+            if need_transpose:
+                q_out, k_out = q_out.transpose(-1, -2), k_out.transpose(-1, -2)
+
+            return q_out, k_out
 
         _safe_apply_rope._gptqmodel_patched = True  # type: ignore[attr-defined]
         _cohere2.apply_rotary_pos_emb = _safe_apply_rope  # type: ignore[assignment]
