@@ -42,8 +42,13 @@ if _cohere2 is not None and hasattr(_cohere2, "apply_rotary_pos_emb"):
             * last dim (dim)  must equal `q.shape[-1]` (real head_dim)
             """
 
-            seq_len = q.shape[-2]
-            head_dim = q.shape[-1]
+            seq_len_cos = cos.shape[-2]
+            # possible seq length dims in q (depend on ordering)
+            cand1, cand2 = q.shape[-2], q.shape[-1]
+            seq_len = cand1 if cand1 <= seq_len_cos else cand2
+
+            head_dim_cos = cos.shape[-1]
+            head_dim = cand2 if cand2 <= head_dim_cos else cand1
 
             cos = cos[:, :seq_len, :head_dim]
             sin = sin[:, :seq_len, :head_dim]
