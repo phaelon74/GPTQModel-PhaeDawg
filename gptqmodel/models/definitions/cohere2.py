@@ -20,3 +20,4 @@ from . import LlamaGPTQ
 class Cohere2GPTQ(LlamaGPTQ):
     require_pkgs_version = ["transformers>4.47.99"]
     layer_type = "Cohere2DecoderLayer"
+    head_dim = 128

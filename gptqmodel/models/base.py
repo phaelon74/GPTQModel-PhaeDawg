@@ -174,6 +174,9 @@ class BaseGPTQModel(nn.Module):
         if self.require_load_processor:
             self.processor = AutoProcessor.from_pretrained(model_local_path)
 
+        if hasattr(self, "head_dim"):
+            self.model.config.head_dim = self.head_dim
+
         # apply patching of broken trust_remote_code models here
         if self.require_monkeypatch:
             self.monkey_patch()
