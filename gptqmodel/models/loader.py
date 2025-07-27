@@ -163,9 +163,6 @@ def ModelLoader(cls):
 
         config = AutoConfig.from_pretrained(model_local_path, **model_init_kwargs)
 
-        if hasattr(cls, "head_dim"):
-            config.head_dim = cls.head_dim
-
         atten_impl = model_init_kwargs.get("attn_implementation", None)
 
         if atten_impl is not None and atten_impl != "auto":
